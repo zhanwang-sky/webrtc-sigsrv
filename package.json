@@ -1,0 +1,10 @@
+{
+  "name": "webrtc-sigsrv",
+  "version": "0.0.1",
+  "description": "WebRTC signaling server",
+  "dependencies": {
+    "express": "^4.18.2",
+    "log4js": "^6.9.1",
+    "socket.io": "^4.7.1"
+  }
+}
