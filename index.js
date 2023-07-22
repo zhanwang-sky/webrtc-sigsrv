@@ -10,7 +10,7 @@ log4js.configure({
 const logger = log4js.getLogger('sigsrv');
 
 if (process.argv.length != 3) {
-  logger.error(`Usage: node ./index.js <port>`);
+  logger.error('Usage: node ./index.js <port>');
   process.exit(1);
 }
 const port = parseInt(process.argv[2], 10);
@@ -22,45 +22,59 @@ const io = socketIo(http_srv);
 io.on('connection', (socket) => {
   logger.debug(`user ${socket.id} connected`);
 
-  socket.on('join', (roomId, ack) => {
+  socket.on('join', (msg, ack) => {
     try {
-      logger.debug(`user ${socket.id} joins room ${roomId}`);
+      logger.debug(`user ${socket.id} join: msg=${JSON.stringify(msg)}`);
+      if (!msg || !msg.room) {
+        ack({ code: 400, message: 'malformed message' });
+        throw new Error('malformed message');
+      }
+      let roomId = msg.room;
       let myRoom = io.sockets.adapter.rooms.get(roomId);
       let usrCnt = myRoom ? myRoom.size : 0;
       logger.debug(`room ${roomId}: usrCnt=${usrCnt}`);
       if (usrCnt >= 2) {
-        ack('full');
+        ack({ code: 500, message: 'room is full' });
         throw new Error('room is full');
       }
       socket.join(roomId);
-      ack(usrCnt + 1);
+      ack({ code: 200, userNum: (usrCnt + 1) });
       socket.to(roomId).emit('join_notify', socket.id);
     } catch (err) {
       logger.error(`Fail to process join request: ${err}`);
     }
   });
 
-  socket.on('leave', (roomId, ack) => {
+  socket.on('leave', (msg, ack) => {
     try {
-      logger.debug(`user ${socket.id} leaves room ${roomId}`);
+      logger.debug(`user ${socket.id} leave: msg=${JSON.stringify(msg)}`);
+      if (!msg || !msg.room) {
+        ack({ code: 400, message: 'malformed message' });
+        throw new Error('malformed message');
+      }
+      let roomId = msg.room;
       let myRoom = io.sockets.adapter.rooms.get(roomId);
       let usrCnt = myRoom ? myRoom.size : 0;
       logger.debug(`room ${roomId}: usrCnt=${usrCnt}`);
       if (usrCnt <= 0) {
-        ack('empty');
+        ack({ code: 500, message: 'room is empty' });
         throw new Error('room is empty');
       }
       socket.leave(roomId);
-      ack(usrCnt - 1);
+      ack({ code: 200, userNum: (usrCnt - 1) });
       socket.to(roomId).emit('leave_notify', socket.id);
     } catch (err) {
       logger.error(`Fail to process leave request: ${err}`);
     }
   });
 
-  socket.on('message', (roomId, msg) => {
+  socket.on('message', (msg) => {
     try {
-      logger.debug(`user ${socket.id} sent message to room ${roomId}: ${msg}`);
+      logger.debug(`user ${socket.id} message: msg=${JSON.stringify(msg)}`);
+      if (!msg || !msg.room || !msg.data) {
+        throw new Error('malformed message');
+      }
+      let roomId = msg.room;
       socket.to(roomId).emit('message', msg);
     } catch (err) {
       logger.error(`Fail to process message request: ${err}`);
@@ -72,7 +86,7 @@ io.on('connection', (socket) => {
     try {
       logger.debug(`user ${socket.id} disconnecting...`);
       let roomList = Array.from(socket.rooms);
-      logger.debug('sending leave_notify to rooms:', roomList);
+      logger.debug(`sending leave_notify to rooms: ${JSON.stringify(roomList)}`);
       socket.to(roomList).emit('leave_notify', socket.id);
     } catch (err) {
       logger.error(`Fail to process disconnecting event: ${err}`);
@@ -84,4 +98,4 @@ http_srv.listen(port, () => {
   logger.info(`listening on *:${port}`);
 });
 
-logger.info('All Done!');
+logger.info('ready to play');
