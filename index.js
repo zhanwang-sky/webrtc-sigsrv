@@ -81,7 +81,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // hasn't left its rooms yet.
   socket.on('disconnecting', () => {
     try {
       logger.debug(`user ${socket.id} disconnecting...`);
@@ -97,5 +96,3 @@ io.on('connection', (socket) => {
 http_srv.listen(port, () => {
   logger.info(`listening on *:${port}`);
 });
-
-logger.info('ready to play');
